@@ -14,6 +14,6 @@ app.use(cors());
 app.use(authRouter);
 
 app.listen(PORT, async () => {
-  await mongoose.connect(connect.env.DATABASE_URL);
+  await mongoose.connect(process.env.DATABASE_URL);
   console.log(`Server is running on http://localhost:${PORT}`);
 });
