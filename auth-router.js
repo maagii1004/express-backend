@@ -1,27 +1,15 @@
 import express from "express";
-import { nanoid } from "nanoid";
 import bcrypt from "bcrypt";
-import { object, string } from "yup";
 import UserModel from "./models/user-model.js";
 
 const router = express.Router();
-
-const signUpSchema = object({
-  username: string()
-    .min(3, "Username must be at least 3 letters long")
-    .required(),
-  password: string()
-    .min(8, "Password must be at least 8 letters long")
-    .matches(/[0-9]/, "Password must contain at least one number")
-    .matches(/[A-Z]/, "Password must contain at least one CAPITAL letter")
-    .required(),
-});
 
 const checkIsPhoneNumber = (credential) => {
   if (credential.length !== 8) return false;
   if (isNaN(Number(credential))) return false;
   const firstCharacter = credential[0];
-  return ["9", "8", "7", "6"].includes(firstCharacter);
+  if (!["9", "8", "7", "6"].includes(firstCharacter)) return false;
+  return true;
 };
 
 const checkIsEmail = (credential) => {
@@ -30,96 +18,109 @@ const checkIsEmail = (credential) => {
 };
 
 router.post("/signup", async (req, res) => {
-  const { fullname, username, credential, password } = req.body;
+  const { credential, password, fullname, username } = req.body;
+  if (!credential || credential === "") {
+    return res.status(400).send({ message: "Email or Phone required!" });
+  }
+  if (!password || password === "") {
+    return res.status(400).send({ message: "Password required!" });
+  }
+  if (!fullname || fullname === "") {
+    return res.status(400).send({ message: "Fullname required!" });
+  }
+  if (!username || username === "") {
+    return res.status(400).send({ message: "Fullname required!" });
+  }
+  // BUH TALBAR UTGATAI BAIGAA
 
-  try {
-    await signUpSchema.validate({ username, password });
+  if (password.length < 7) {
+    return res
+      .status(400)
+      .send({
+        message: "Ta 8 buyu tuunees deesh temdegttei password hiine uu!",
+      });
+  }
 
-    if (!credential) {
-      return res.status(400).send({ message: "Email or Phone is required!" });
-    }
+  const existingUser = await UserModel.findOne({ username: username });
+  if (existingUser) {
+    return res.status(400).send({ message: "Username burtgeltei baina!" });
+  }
 
-    if (!fullname) {
-      return res.status(400).send({ message: "Fullname is required!" });
-    }
+  const isPhoneNumber = checkIsPhoneNumber(credential);
+  const isEmail = checkIsEmail(credential);
 
-    const isEmail = checkIsEmail(credential);
-    const isPhone = checkIsPhoneNumber(credential);
+  if (!isPhoneNumber && !isEmail) {
+    return res
+      .status(400)
+      .send({ message: "Ta zovhon utasnii dugaar esvel email oruulna uu!" });
+  }
 
-    if (!isEmail && !isPhone) {
+  if (isPhoneNumber) {
+    const existingUser = await UserModel.findOne({ phone: credential });
+    if (existingUser) {
       return res
         .status(400)
-        .send({ message: "Invalid Email or Phone format!" });
-    }
-
-    const query = isEmail ? { email: credential } : { phone: credential };
-    const credentialExists = await UserModel.findOne(query);
-
-    if (credentialExists) {
-      return res.status(400).send({
-        message: `${isEmail ? "Email" : "Phone number"} is already registered!`,
+        .send({ message: "Utasnii dugaar burtgeltei baina!" });
+    } else {
+      bcrypt.hash(password, 10, async function (err, hash) {
+        const newUser = {
+          phone: credential,
+          fullname: fullname,
+          password: hash,
+          username: username,
+        };
+        await UserModel.create(newUser);
+        return res.status(201).send(newUser);
       });
     }
+  }
 
-    const usernameExists = await UserModel.findOne({ username });
-    if (usernameExists) {
-      return res.status(400).send({ message: "Username is already taken!" });
+  if (isEmail) {
+    const existingUser = await UserModel.findOne({ email: credential });
+    if (existingUser) {
+      return res.status(400).send({ message: "Email burtgeltei baina!" });
+    } else {
+      bcrypt.hash(password, 10, async function (err, hash) {
+        const newUser = {
+          email: credential,
+          fullname: fullname,
+          password: hash,
+          username: username,
+        };
+        await UserModel.create(newUser);
+        return res.status(201).send(newUser);
+      });
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = {
-      id: nanoid(),
-      fullname,
-      username,
-      password: hashedPassword,
-      credential,
-    };
-
-    await UserModel.create(newUser);
-    res.status(201).send({ message: "User registered successfully!" });
-  } catch (error) {
-    res.status(400).send({ message: error.message });
   }
 });
 
-router.post("/login", async (req, res) => {
+router.post("/signin", async (req, res) => {
   const { credential, password } = req.body;
 
-  if (!credential || !password) {
+  let existingUser = null;
+  if (checkIsPhoneNumber(credential)) {
+    existingUser = await UserModel.findOne({ phone: credential });
+  } else if (checkIsEmail(credential)) {
+    existingUser = await UserModel.findOne({ email: credential });
+  } else {
+    existingUser = await UserModel.findOne({ username: credential });
+  }
+
+  if (!existingUser) {
     return res
       .status(400)
-      .send({ message: "Email/Phone and Password are required!" });
+      .send({ message: "Credential or password not correct!" });
   }
 
-  try {
-    const query = checkIsEmail(credential)
-      ? { email: credential }
-      : checkIsPhoneNumber(credential)
-      ? { phone: credential }
-      : null;
-
-    if (!query) {
+  bcrypt.compare(password, existingUser.password, function (err, result) {
+    if (!result) {
       return res
         .status(400)
-        .send({ message: "Invalid Email or Phone format!" });
+        .send({ message: "Email or password not correct!" });
+    } else {
+      return res.status(200).send({ message: "Welcome" });
     }
-
-    const user = await UserModel.findOne(query);
-    if (!user) {
-      return res
-        .status(400)
-        .send({ message: "No account found with that credential!" });
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(400).send({ message: "Invalid password!" });
-    }
-
-    res.status(200).send({ message: "Login successful!" });
-  } catch (error) {
-    res.status(400).send({ message: error.message });
-  }
+  });
 });
 
 export default router;
