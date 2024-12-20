@@ -1,6 +1,6 @@
 import express from "express";
 import bcrypt from "bcrypt";
-import UserModel from "./models/user-model.js";
+import UserModel from "../models/user-model.js";
 
 const router = express.Router();
 
@@ -34,11 +34,9 @@ router.post("/signup", async (req, res) => {
   // BUH TALBAR UTGATAI BAIGAA
 
   if (password.length < 7) {
-    return res
-      .status(400)
-      .send({
-        message: "Ta 8 buyu tuunees deesh temdegttei password hiine uu!",
-      });
+    return res.status(400).send({
+      message: "Ta 8 buyu tuunees deesh temdegttei password hiine uu!",
+    });
   }
 
   const existingUser = await UserModel.findOne({ username: username });
