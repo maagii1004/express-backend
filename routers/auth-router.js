@@ -1,6 +1,11 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import UserModel from "../models/user-model.js";
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
+import { authMiddleware } from "../middlewares/auth-middleware.js";
+
+dotenv.config();
 
 const router = express.Router();
 
@@ -34,9 +39,11 @@ router.post("/signup", async (req, res) => {
   // BUH TALBAR UTGATAI BAIGAA
 
   if (password.length < 7) {
-    return res.status(400).send({
-      message: "Ta 8 buyu tuunees deesh temdegttei password hiine uu!",
-    });
+    return res
+      .status(400)
+      .send({
+        message: "Ta 8 buyu tuunees deesh temdegttei password hiine uu!",
+      });
   }
 
   const existingUser = await UserModel.findOne({ username: username });
@@ -92,7 +99,7 @@ router.post("/signup", async (req, res) => {
   }
 });
 
-router.post("/signin", async (req, res) => {
+router.post("/login", async (req, res) => {
   const { credential, password } = req.body;
 
   let existingUser = null;
@@ -116,9 +123,24 @@ router.post("/signin", async (req, res) => {
         .status(400)
         .send({ message: "Email or password not correct!" });
     } else {
-      return res.status(200).send({ message: "Welcome" });
+      const accessToken = jwt.sign(
+        {
+          user: existingUser,
+        },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "10h",
+        }
+      );
+      return res.status(200).send({ message: "Welcome", accessToken });
     }
   });
 });
+
+router.get("/me", authMiddleware, (req, res) => {
+  return res.send(req.user);
+});
+
+router.post("/me", authMiddleware, (req, res) => {});
 
 export default router;
