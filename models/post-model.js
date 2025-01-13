@@ -1,4 +1,4 @@
-import mongoose, { Mongoose } from "mongoose";
+import mongoose from "mongoose";
 
 const postSchema = new mongoose.Schema(
   {
@@ -12,8 +12,20 @@ const postSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: true }
+  { toJSON: { virtuals: true }, toObject: { virtuals: true }, timestamps: true }
 );
+
+postSchema.virtual("comments", {
+  ref: "comments",
+  localField: "_id",
+  foreignField: "post",
+});
+
+postSchema.virtual("likes", {
+  ref: "likes",
+  localField: "_id",
+  foreignField: "post",
+});
 
 const PostModel = mongoose.model("posts", postSchema);
 
