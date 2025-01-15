@@ -39,11 +39,7 @@ router.post("/signup", async (req, res) => {
   // BUH TALBAR UTGATAI BAIGAA
 
   if (password.length < 7) {
-    return res
-      .status(400)
-      .send({
-        message: "Ta 8 buyu tuunees deesh temdegttei password hiine uu!",
-      });
+    return res.status(400).send({ message: "Ta 8 buyu tuunees deesh temdegttei password hiine uu!" });
   }
 
   const existingUser = await UserModel.findOne({ username: username });
@@ -55,25 +51,16 @@ router.post("/signup", async (req, res) => {
   const isEmail = checkIsEmail(credential);
 
   if (!isPhoneNumber && !isEmail) {
-    return res
-      .status(400)
-      .send({ message: "Ta zovhon utasnii dugaar esvel email oruulna uu!" });
+    return res.status(400).send({ message: "Ta zovhon utasnii dugaar esvel email oruulna uu!" });
   }
 
   if (isPhoneNumber) {
     const existingUser = await UserModel.findOne({ phone: credential });
     if (existingUser) {
-      return res
-        .status(400)
-        .send({ message: "Utasnii dugaar burtgeltei baina!" });
+      return res.status(400).send({ message: "Utasnii dugaar burtgeltei baina!" });
     } else {
       bcrypt.hash(password, 10, async function (err, hash) {
-        const newUser = {
-          phone: credential,
-          fullname: fullname,
-          password: hash,
-          username: username,
-        };
+        const newUser = { phone: credential, fullname: fullname, password: hash, username: username };
         await UserModel.create(newUser);
         return res.status(201).send(newUser);
       });
@@ -86,12 +73,7 @@ router.post("/signup", async (req, res) => {
       return res.status(400).send({ message: "Email burtgeltei baina!" });
     } else {
       bcrypt.hash(password, 10, async function (err, hash) {
-        const newUser = {
-          email: credential,
-          fullname: fullname,
-          password: hash,
-          username: username,
-        };
+        const newUser = { email: credential, fullname: fullname, password: hash, username: username };
         await UserModel.create(newUser);
         return res.status(201).send(newUser);
       });
@@ -112,16 +94,12 @@ router.post("/login", async (req, res) => {
   }
 
   if (!existingUser) {
-    return res
-      .status(400)
-      .send({ message: "Credential or password not correct!" });
+    return res.status(400).send({ message: "Credential or password not correct!" });
   }
 
   bcrypt.compare(password, existingUser.password, function (err, result) {
     if (!result) {
-      return res
-        .status(400)
-        .send({ message: "Email or password not correct!" });
+      return res.status(400).send({ message: "Email or password not correct!" });
     } else {
       const accessToken = jwt.sign(
         {
@@ -140,7 +118,5 @@ router.post("/login", async (req, res) => {
 router.get("/me", authMiddleware, (req, res) => {
   return res.send(req.user);
 });
-
-router.post("/me", authMiddleware, (req, res) => {});
 
 export default router;
